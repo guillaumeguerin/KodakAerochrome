@@ -160,8 +160,8 @@ MySimpleGainFunc8 (
 
 		outP->alpha		=	inP->alpha;
 		outP->red		=	MIN((inP->red	+ (A_u_char) tempF), PF_MAX_CHAN8);
-		outP->green		=	MIN((inP->green	+ (A_u_char) tempF), PF_MAX_CHAN8);
-		outP->blue		=	MIN((inP->blue	+ (A_u_char) tempF), PF_MAX_CHAN8);
+		outP->green		=	MIN((inP->blue	+ (A_u_char) tempF), PF_MAX_CHAN8);
+		outP->blue		=	MIN((inP->green	+ (A_u_char) tempF), PF_MAX_CHAN8);
 	}
 
 	return err;
