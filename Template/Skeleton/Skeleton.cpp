@@ -38,6 +38,7 @@
 */
 
 #include "Skeleton.h"
+#include <math.h> 
 
 static PF_Err 
 About (	
@@ -158,10 +159,124 @@ MySimpleGainFunc8 (
 			tempF = PF_MAX_CHAN8;
 		};
 
-		outP->alpha		=	inP->alpha;
-		outP->red		=	MIN((inP->red	+ (A_u_char) tempF), PF_MAX_CHAN8);
-		outP->green		=	MIN((inP->blue	+ (A_u_char) tempF), PF_MAX_CHAN8);
-		outP->blue		=	MIN((inP->green	+ (A_u_char) tempF), PF_MAX_CHAN8);
+		inP->red = MIN((inP->red + (A_u_char)tempF), PF_MAX_CHAN8);
+		inP->green = MIN((inP->blue + (A_u_char)tempF), PF_MAX_CHAN8);
+		inP->blue = MIN((inP->green + (A_u_char)tempF), PF_MAX_CHAN8);
+
+		//Converting to HSB color space
+		PF_FpLong R = inP->red / PF_MAX_CHAN8;
+		PF_FpLong G = inP->green / PF_MAX_CHAN8;
+		PF_FpLong B = inP->blue / PF_MAX_CHAN8;
+		PF_FpLong fMax = MAX(MAX(R, G), B);
+		PF_FpLong fMin = MIN(MIN(R, G), B);
+
+		PF_FpLong hue;
+		PF_FpLong saturation;
+		PF_FpLong brightness;
+
+		//Retrieving the hue
+		if (fMax = R) {
+			hue = (G - B) / (fMax - fMin);
+		}
+		else if (fMax = G) {
+			hue = 2.0 + (B - R) / (fMax - fMin);
+		}
+		else {
+			hue = 4.0 + (R - G) / (fMax - fMin);
+		}
+		hue *= 60;
+		if (hue < 0) {
+			hue += 360;
+		}
+
+		//Retrieving the brightness
+		brightness = (0.2126*inP->red + 0.7152*inP->green + 0.0722*inP->blue);
+
+		//Retrieving the saturation
+		if (fMax == fMin) {
+			saturation = 0;
+		}
+		else {
+			if (brightness < 0.5) {
+				saturation = (fMax - fMin) / (fMax + fMin);
+			}
+			else {
+				saturation = (fMax - fMin) / (2.0 - fMax - fMin);
+			}
+		}
+
+		hue -= 303;
+
+		//Converting it back to RGB color space
+		outP->alpha = inP->alpha;
+		if (saturation == 0) {
+			outP->red = (A_u_char) brightness * PF_MAX_CHAN8;
+			outP->green = (A_u_char) brightness * PF_MAX_CHAN8;
+			outP->blue = (A_u_char) brightness * PF_MAX_CHAN8;
+		}
+		else {
+			//PF_FpLong fMax;
+			PF_FpLong fMid;
+			//PF_FpLong fMin;
+			int iSextant, iMax, iMid, iMin;
+
+			if (0.5 < brightness) {
+				fMax = brightness - (brightness * saturation) + saturation;
+				fMin = brightness + (brightness * saturation) - saturation;
+			}
+			else {
+				fMax = brightness + (brightness * saturation);
+				fMin = brightness - (brightness * saturation);
+			}
+			iSextant = (int) floor(hue / 60.0);
+			if (300.0 <= hue)
+			{
+				hue -= 360.0;
+			}
+			hue /= 60.0;
+			hue -= 2.0 * (float) floor((fmod((iSextant + 1.0), 6)) / 2.0);
+			if (0 == iSextant % 2)
+			{
+				fMid = hue * (fMax - fMin) + fMin;
+			}
+			else
+			{
+				fMid = fMin - hue * (fMax - fMin);
+			}
+
+			iMax = (int) fMax * 255;
+			iMid = (int) fMid * 255;
+			iMin = (int) fMin * 255;
+
+			switch (iSextant)
+			{
+			case 1:
+				outP->red = MIN(iMid, PF_MAX_CHAN8);
+				outP->green = MIN(iMax, PF_MAX_CHAN8);
+				outP->blue = MIN(iMin, PF_MAX_CHAN8);
+			case 2:
+				outP->red = MIN(iMin, PF_MAX_CHAN8);
+				outP->green = MIN(iMax, PF_MAX_CHAN8);
+				outP->blue = MIN(iMid, PF_MAX_CHAN8);
+			case 3:
+				outP->red = MIN(iMin, PF_MAX_CHAN8);
+				outP->green = MIN(iMid, PF_MAX_CHAN8);
+				outP->blue = MIN(iMax, PF_MAX_CHAN8);
+			case 4:
+				outP->red = MIN(iMid, PF_MAX_CHAN8);
+				outP->green = MIN(iMin, PF_MAX_CHAN8);
+				outP->blue = MIN(iMax, PF_MAX_CHAN8);
+			case 5:
+				outP->red = MIN(iMax, PF_MAX_CHAN8);
+				outP->green = MIN(iMin, PF_MAX_CHAN8);
+				outP->blue = MIN(iMid, PF_MAX_CHAN8);
+			default:
+				outP->red = MIN(iMax, PF_MAX_CHAN8);
+				outP->green = MIN(iMid, PF_MAX_CHAN8);
+				outP->blue = MIN(iMin, PF_MAX_CHAN8);
+			}
+		}
+
 	}
 
 	return err;
